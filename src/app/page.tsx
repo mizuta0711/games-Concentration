@@ -171,44 +171,51 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-800 to-gray-900 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center mb-4">
           <h1 className="text-2xl font-bold mb-4 text-white">神経衰弱ゲーム</h1>
 
-          <div className="mb-4">
+          <div className="flex items-center justify-center mb-4">
+            {/* 遊び方ボタン */}
             <button
               onClick={() => setShowInstructions(!showInstructions)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg
-              transform hover:scale-105 transition-transform duration-200"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md
+                     transform hover:scale-105 transition-transform duration-200"
             >
               {showInstructions ? '遊び方を隠す' : '遊び方を見る'}
             </button>
 
-            {showInstructions && (
-              <div className="p-4 mt-2 border rounded bg-gray-100 text-left">
-                <h2 className="text-xl font-bold mb-2">遊び方</h2>
-                <p></p>
-                <p>神経衰弱は、裏返されたカードのペアを見つけるゲームです。</p>
-                <ul className="list-disc list-inside">
-                  <li>カードをクリックしてめくります</li>
-                  <li>２枚のカードが一致するか確認します</li>
-                  <li>一致する場合、そのカードは表のままになります</li>
-                  <li>一致しない場合、カードは元に戻ります</li>
-                  <li>すべてのカードのペアを見つけるとゲームクリアです</li>
-                </ul>
-              </div>
-            )}
+            {/* 開始ボタン */}
+            <Button
+              onClick={resetGame}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md ml-2
+                     transform hover:scale-105 transition-transform duration-200"
+            >
+              ゲームをリセット
+            </Button>
           </div>
 
           <p className="text-xl mb-4 text-gray-300">手数: {moves}</p>
-          <Button
-            onClick={resetGame}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg
-                     transform hover:scale-105 transition-transform duration-200"
-          >
-            ゲームをリセット
-          </Button>
         </div>
 
+        {/* 遊び方 */}
+        <div className="mb-4">
+          {showInstructions && (
+            <div className="p-4 mt-2 border rounded bg-gray-100 text-left">
+              <h2 className="text-xl font-bold mb-2">遊び方</h2>
+              <p></p>
+              <p>神経衰弱は、裏返されたカードのペアを見つけるゲームです。</p>
+              <ul className="list-disc list-inside">
+                <li>カードをクリックしてめくります</li>
+                <li>２枚のカードが一致するか確認します</li>
+                <li>一致する場合、そのカードは表のままになります</li>
+                <li>一致しない場合、カードは元に戻ります</li>
+                <li>すべてのカードのペアを見つけるとゲームクリアです</li>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* カード一覧 */}
         <div className="grid grid-cols-4 gap-2 perspective-1000">
           {cards.map(card => (
             <div
@@ -219,7 +226,7 @@ export default function Home() {
             >
               <Card
                 className={`relative w-full h-32 cursor-pointer transform-gpu transition-all duration-500
-                          hover:shadow-xl ${!card.isFlipped && !card.isMatched 
+                          hover:shadow-xl ${!card.isFlipped && !card.isMatched
                   }`}
                 onClick={() => !card.isFlipped && !card.isMatched && handleCardClick(card.id)}
                 style={{ transformStyle: 'preserve-3d' }}
@@ -231,7 +238,7 @@ export default function Home() {
                              bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl
                              border-2 border-blue-400 shadow-lg`}
                 >
-                <div className="text-5xl font-bold text-white">?</div>
+                  <div className="text-5xl font-bold text-white">?</div>
                 </CardContent>
 
                 {/* カードの裏面 */}
