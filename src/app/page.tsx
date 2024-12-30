@@ -172,7 +172,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-gray-800 to-gray-900 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 text-white">神経衰弱</h1>
+          <h1 className="text-2xl font-bold mb-4 text-white">神経衰弱ゲーム</h1>
 
           <div className="mb-4">
             <button
@@ -209,7 +209,7 @@ export default function Home() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-4 gap-6 perspective-1000">
+        <div className="grid grid-cols-4 gap-2 perspective-1000">
           {cards.map(card => (
             <div
               key={card.id}
@@ -218,10 +218,8 @@ export default function Home() {
               style={{ transformStyle: 'preserve-3d' }}
             >
               <Card
-                className={`relative w-full cursor-pointer transform-gpu transition-all duration-500
-                          hover:shadow-xl ${!card.isFlipped && !card.isMatched && !isLocked
-                    ? 'hover:-translate-y-2'
-                    : ''
+                className={`relative w-full h-32 cursor-pointer transform-gpu transition-all duration-500
+                          hover:shadow-xl ${!card.isFlipped && !card.isMatched 
                   }`}
                 onClick={() => !card.isFlipped && !card.isMatched && handleCardClick(card.id)}
                 style={{ transformStyle: 'preserve-3d' }}
