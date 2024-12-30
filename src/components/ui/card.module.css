@@ -1,0 +1,19 @@
+.card {
+    height: 100px;
+    /* カードの高さを調整 */
+    display: flex;
+    flex-direction: column;
+    /* カードの要素を縦に並べる */
+    justify-content: center;
+    /* カードの中央揃え（上下方向） */
+    align-items: center;
+    /* カードの中央揃え（左右方向） */
+}
+
+.cardContent {
+    height: 100%;
+    /* 親要素の高さに合わせて、子要素の高さを設定 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
