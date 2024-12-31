@@ -3,110 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { GameManager } from './GameManager';
+import { GameDifficulty, CardType } from './types';
 
-// 型定義
-interface CardType {
-  id: number;
-  value: number;
-  isFlipped: boolean;
-  isMatched: boolean;
-}
-
-// ゲームの設定
-const CARD_PAIRS = 6; // カードのペア数（難易度調整用）
-const FLIP_DELAY = 1000; // カードを戻すまでの待機時間（ミリ秒）
-
-// カードの状態を管理するクラス
-class GameManager {
-  private cards: CardType[];
-  private cardPairs: number;
-
-  constructor(cardPairs: number) {
-    this.cardPairs = cardPairs;
-    this.cards = [];
-    this.initializeCards();
-  }
-
-  // カードの初期化
-  private initializeCards(): void {
-    const cards: CardType[] = [];
-    for (let i = 1; i <= this.cardPairs; i++) {
-      cards.push({
-        id: i * 2 - 1,
-        value: i,
-        isFlipped: false,
-        isMatched: false
-      });
-      cards.push({
-        id: i * 2,
-        value: i,
-        isFlipped: false,
-        isMatched: false
-      });
-    }
-    this.cards = this.shuffleCards(cards);
-  }
-
-  // カードのシャッフル
-  private shuffleCards(cards: CardType[]): CardType[] {
-    const shuffled = [...cards];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }
-
-  // カードの状態を取得
-  getCards(): CardType[] {
-    return [...this.cards];
-  }
-
-  // カードをめくる
-  flipCard(id: number): boolean {
-    const cardIndex = this.cards.findIndex(card => card.id === id);
-    if (cardIndex === -1 || this.cards[cardIndex].isMatched || this.cards[cardIndex].isFlipped) {
-      return false;
-    }
-    this.cards[cardIndex].isFlipped = true;
-    return true;
-  }
-
-  // めくられているカードを取得
-  getFlippedCards(): CardType[] {
-    return this.cards.filter(card => card.isFlipped && !card.isMatched);
-  }
-
-  // カードのペアが一致しているか確認
-  checkMatch(): boolean {
-    const flippedCards = this.getFlippedCards();
-    if (flippedCards.length !== 2) return false;
-
-    const match = flippedCards[0].value === flippedCards[1].value;
-    if (match) {
-      flippedCards.forEach(card => {
-        const index = this.cards.findIndex(c => c.id === card.id);
-        if (index !== -1) {
-          this.cards[index].isMatched = true;
-        }
-      });
-    }
-    return match;
-  }
-
-  // めくられているカードを元に戻す
-  resetFlippedCards(): void {
-    this.cards = this.cards.map(card => ({
-      ...card,
-      isFlipped: card.isMatched ? card.isFlipped : false
-    }));
-  }
-
-  // ゲームクリアの確認
-  isGameComplete(): boolean {
-    return this.cards.every(card => card.isMatched);
-  }
-}
+/**
+ * カードを戻すまでの待機時間（ミリ秒）
+ * @constant
+ * @type {number}
+ */
+const FLIP_DELAY = 1000;
 
 export default function Home() {
   /**
@@ -114,21 +19,115 @@ export default function Home() {
    * trueの場合、遊び方が表示されます。
    * @type {boolean}
    */
-  const [showInstructions, setShowInstructions] = useState(false)
-  const [gameManager, setGameManager] = useState<GameManager | null>(null);
+  const [showInstructions, setShowInstructions] = useState(false);
+
+  /**
+   * 現在選択されているゲームの難易度。
+   * @type {GameDifficulty} 'easy' | 'normal' | 'hard' | 'expert'
+   */
+  const [difficulty, setDifficulty] = useState<GameDifficulty>('normal');
+
+  /**
+   * ゲーム内で使用するカードの配列。
+   * @type {CardType[]}
+   */
   const [cards, setCards] = useState<CardType[]>([]);
+
+  /**
+   * ゲームのプレイ中かどうかを管理するフラグ。
+   * @type {boolean}
+   */
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  /**
+   * カードの操作がロックされているかどうかを管理するフラグ。
+   * trueの場合、操作が一時的に無効になります。
+   * @type {boolean}
+   */
   const [isLocked, setIsLocked] = useState(false);
+
+  /**
+   * プレイヤーが行った手数をカウントします。
+   * @type {number}
+   */
   const [moves, setMoves] = useState(0);
+
+  /**
+   * ゲームがクリアされたかどうかを管理するフラグ。
+   * trueの場合、全てのカードペアが一致しています。
+   * @type {boolean}
+   */
   const [gameComplete, setGameComplete] = useState(false);
 
-  // ゲームの初期化
-  useEffect(() => {
-    const manager = new GameManager(CARD_PAIRS);
-    setGameManager(manager);
-    setCards(manager.getCards());
-  }, []);
+  /**
+   * 強制的にコンポーネントを再レンダリングするためのフラグ。
+   * 状態変更時にリレンダリングをトリガーします。
+   * @type {boolean}
+   */
+  const [forceUpdateFlag, setForceUpdateFlag] = useState(false);
 
-  // カードクリック時の処理
+  /**
+   * コンポーネントを再レンダリングするための関数。
+   * フラグの値を反転させることで再レンダリングをトリガーします。
+   */
+  const forceUpdate = () => setForceUpdateFlag(!forceUpdateFlag);
+
+  /**
+   * GameManager のインスタンスを初期化する関数。
+   * 難易度に基づいてゲームの設定を作成します。
+   * @param {GameDifficulty} difficulty - 選択されたゲームの難易度。
+   * @returns {GameManager} 新しい GameManager のインスタンス。
+   */
+  const initializeGameManager = (difficulty: GameDifficulty) => {
+    return new GameManager(difficulty);
+  };
+
+    /**
+   * ゲームマネージャーのインスタンスを管理します。
+   * ゲームの進行状況を管理するための主要なロジックを含みます。
+   * @type {GameManager}
+   */
+    const [gameManager, setGameManager] = useState(() =>
+      initializeGameManager(difficulty)
+    );
+  
+  /**
+   * ゲームをリセットする関数。
+   * カード、手数、ロック状態などの初期化を行います。
+   */
+  const resetGame = () => {
+    const newGameManager = initializeGameManager(difficulty);
+    setGameManager(newGameManager);
+    setCards(newGameManager.getCards());
+    setIsPlaying(false);
+    setMoves(0);
+    setGameComplete(false);
+    setIsLocked(false);
+    forceUpdate();
+  };
+
+  /**
+   * ゲームの初期化時および難易度変更時に実行される副作用。
+   * `useEffect` により依存する状態が変更された場合にリセット処理が呼び出されます。
+   */
+  useEffect(() => {
+    resetGame();
+  }, [difficulty]);
+
+  /**
+   * 難易度変更時に呼び出されるハンドラー関数。
+   * 新しい難易度を設定し、ゲームを再初期化します。
+   * @param {GameDifficulty} newDifficulty - 選択された新しい難易度。
+   */
+  const handleDifficultyChange = (newDifficulty: GameDifficulty) => {
+    setDifficulty(newDifficulty);
+  };
+
+  /**
+   * カードクリック時に実行される関数。
+   * カードの状態変更やマッチング処理を行います。
+   * @param {number} id - クリックされたカードのID。
+   */
   const handleCardClick = async (id: number) => {
     if (!gameManager || isLocked) return;
     if (gameManager.getFlippedCards().length === 2) return;
@@ -136,16 +135,17 @@ export default function Home() {
     const success = gameManager.flipCard(id);
     if (!success) return;
 
+    setIsPlaying(true);
     setCards([...gameManager.getCards()]);
 
     const flippedCards = gameManager.getFlippedCards();
     if (flippedCards.length === 2) {
       setIsLocked(true);
-      setMoves(prev => prev + 1);
+      setMoves((prev) => prev + 1);
 
       const isMatch = gameManager.checkMatch();
       if (!isMatch) {
-        await new Promise(resolve => setTimeout(resolve, FLIP_DELAY));
+        await new Promise((resolve) => setTimeout(resolve, FLIP_DELAY));
         gameManager.resetFlippedCards();
       }
 
@@ -158,21 +158,11 @@ export default function Home() {
     }
   };
 
-  // ゲームのリセット
-  const resetGame = () => {
-    const manager = new GameManager(CARD_PAIRS);
-    setGameManager(manager);
-    setCards(manager.getCards());
-    setMoves(0);
-    setGameComplete(false);
-    setIsLocked(false);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-800 to-gray-900 p-4">
+    <div className="min-h-screen bg-white from-gray-800 to-gray-900 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold mb-4 text-white">神経衰弱ゲーム</h1>
+          <h1 className="text-2xl font-bold mb-4">神経衰弱ゲーム</h1>
 
           <div className="flex items-center justify-center mb-4">
             {/* 遊び方ボタン */}
@@ -194,7 +184,23 @@ export default function Home() {
             </Button>
           </div>
 
-          <p className="text-xl mb-4 text-gray-300">手数: {moves}</p>
+          {/* 難易度選択 */}
+          <div className="mb-4 space-x-2">
+            <label className="mr-2">難易度:</label>
+            <select
+              value={difficulty}
+              onChange={(e) => handleDifficultyChange(e.target.value as GameDifficulty)}
+              disabled={isPlaying}
+              className="px-2 py-1 border rounded"
+            >
+              <option value="easy">かんたん</option>
+              <option value="normal">ふつう</option>
+              <option value="hard">むずかしい</option>
+              <option value="expert">とてもむずかしい</option>
+            </select>
+          </div>
+
+          <p className="text-xl mb-4">手数: {moves}</p>
         </div>
 
         {/* 遊び方 */}
@@ -234,20 +240,23 @@ export default function Home() {
                 {/* カードの表面 */}
                 <CardContent
                   className={`absolute w-full h-full backface-hidden flex items-center justify-center
-                             ${card.isFlipped || card.isMatched ? 'rotate-y-180 invisible' : ''}
-                             bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl
-                             border-2 border-blue-400 shadow-lg`}
+                             bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl border-2 border-blue-400 shadow-lg`}
+                  style={{
+                    backfaceVisibility: 'hidden',
+                  }}
                 >
                   <div className="text-5xl font-bold text-white">?</div>
                 </CardContent>
 
                 {/* カードの裏面 */}
                 <CardContent
-                  className={`absolute w-full h-full backface-hidden flex items-center justify-center
-                             rotate-y-180 ${card.isFlipped || card.isMatched ? 'visible' : 'invisible'}
-                             bg-white rounded-xl border-2 border-gray-200 shadow-lg`}
+                  className={`absolute w-full h-full backface-hidden flex items-center justify-center rotate-y-180
+                             bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl border-2 border-gray-200 shadow-lg`}
+                  style={{
+                    backfaceVisibility: 'hidden',
+                  }}
                 >
-                  <div className="text-5xl font-bold text-gray-800">{card.value}</div>
+                  <div className="text-5xl font-bold text-white">{card.value}</div>
                 </CardContent>
               </Card>
             </div>
